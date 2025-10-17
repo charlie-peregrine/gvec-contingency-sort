@@ -1,0 +1,11 @@
+.venv/
+*.pyc
+Example Final Cont Files/
+base.zip
+filtered_con_text.txt
+
+# input file folder
+ERCOT Contingency Files
+
+# input bus txt file
+Buses for Contingencies.txt
