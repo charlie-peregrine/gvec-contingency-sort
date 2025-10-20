@@ -42,9 +42,10 @@ try:
     os.remove('filtered_con_text.con')
 except OSError:
     pass
+print("| Input Files:")
 for p in ALL_INPUT_CON_FILES_PATH.glob("*.con"):
     kbytes = os.stat(p).st_size/1024
-    print(p.name, '- ', end='')
+    print('|', p.name, '- ', end='')
     with open(p, 'r') as read_file, open('filtered_con_text.txt', 'a') as filter_file:
         text = read_file.read()
 
@@ -77,8 +78,9 @@ print("double_dict ", len(double_dict))
 print("con_set     ", len(con_set))
 
 # separate doubled contingency id's
+print("duplicate id's:")
 for id_, set_ in double_dict.items():
-    print('===', id_)
+    print(' ', id_)
     sorted_cons = sorted(set_, key=lambda x: (x.lines_str, x.full_str))
     for i, con in enumerate(sorted_cons):
         # print(con.full_str)
@@ -100,9 +102,9 @@ print("bus_filtered_con_set", len(bus_filtered_con_set))
 dump_contingencies(OUTPUT_CON_PATH / "All Filtered Contingencies.con", bus_filtered_con_set)
 
 # show nerc category numerical breakdown
-for cat, num in get_cat_numbers(bus_filtered_con_set):
-    # print(f"{num:<5} {cat}")
-    pass
+# for cat, num in get_cat_numbers(bus_filtered_con_set):
+#     print(f"{num:<5} {cat}")
+#     pass
 
 # get all the contingencies that share a set of statements
 dup_lines_dict: dict[str, list[Contingency]] = {}
@@ -111,7 +113,6 @@ for x in bus_filtered_con_set:
         dup_lines_dict[x.lines_str] = []
     dup_lines_dict[x.lines_str].append(x)
 dup_lines_dict = {line: ls for line, ls in dup_lines_dict.items() if len(ls) > 1}
-print(len(dup_lines_dict))
 
 # get the counts for how many duplicates there are and
 # how many doubles, triples, etc.
