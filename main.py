@@ -8,6 +8,7 @@ from pathlib import Path
 
 import openpyxl
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.table import Table
 import openpyxl.styles
 
 from consort.contingency import Contingency
@@ -180,7 +181,6 @@ df.to_excel(XL_PATH, index=False, sheet_name="Contingency Lookup")
 wb = openpyxl.open(XL_PATH)
 sheet = wb['Contingency Lookup']
 for col in range(sheet.max_column):
-    # max_col_len = 0
     col_lens = []
     for row in range(sheet.max_row):
         cell = sheet.cell(row=row+1, column=col+1)
@@ -194,5 +194,10 @@ for col in range(sheet.max_column):
         # max_col_len = max(max_col_len, cell_len)
     max_col_len = max(sorted(col_lens)[:int(len(col_lens)*.95)])
     sheet.column_dimensions[get_column_letter(col+1)].width = max_col_len
+
+# make the contingency lookup tab into a sortable table
+table_ref = f"A1:{get_column_letter(sheet.max_column)}{sheet.max_row}"
+tab = Table(displayName="ContingencyLookup", ref=table_ref)
+sheet.add_table(tab)
     
 wb.save(XL_PATH)
