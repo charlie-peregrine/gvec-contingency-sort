@@ -4,6 +4,7 @@
 import os
 import argparse
 import re
+import math
 import configparser
 import pandas as pd
 from pathlib import Path
@@ -17,9 +18,9 @@ from consort.contingency import Contingency
 from consort.tools import dump_contingencies, get_cat_numbers
 
 # process cmd line arg if it exists
-parser = argparse.ArgumentParser(prog="PSSE Contingency Sorting")
+parser = argparse.ArgumentParser()
 parser.add_argument("ini_path", default='config.ini', nargs='?',
-        help="The program's config file. See default for more details. Optional.")
+        help="The program's config file. See default (config.ini) for more details.")
 args = parser.parse_args()
 config_file_path = Path(args.ini_path)
 
@@ -29,6 +30,13 @@ config_data.read(config_file_path)
 BUS_FILE                 = Path(config_data["PATHS"]["BUS_FILE"])
 OUTPUT_CON_PATH          = Path(config_data["PATHS"]["OUTPUT_CON_PATH"])
 ALL_INPUT_CON_FILES_PATH = Path(config_data["PATHS"]["ALL_INPUT_CON_FILES_PATH"])
+SHOW_INPUT_FILE_PROCESSING  = config_data["FLAGS"].getboolean("SHOW_INPUT_FILE_PROCESSING")
+SHOW_LOADED_CON_SUMMARY     = config_data["FLAGS"].getboolean("SHOW_LOADED_CON_SUMMARY")
+SHOW_DUP_ID_LIST            = config_data["FLAGS"].getboolean("SHOW_DUP_ID_LIST")
+SHOW_NERC_CAT_SUMMARY       = config_data["FLAGS"].getboolean("SHOW_NERC_CAT_SUMMARY")
+SHOW_DUP_LINE_COUNT_SUMMARY = config_data["FLAGS"].getboolean("SHOW_DUP_LINE_COUNT_SUMMARY")
+SHOW_OUTPUT_FILE_PROGRESS   = config_data["FLAGS"].getboolean("SHOW_OUTPUT_FILE_PROGRESS")
+WAIT_FOR_INPUT_TO_CLOSE     = config_data["FLAGS"].getboolean("WAIT_FOR_INPUT_TO_CLOSE")
 
 # read buses from bus file
 with open(BUS_FILE, 'r') as bus_file:
@@ -55,10 +63,12 @@ try:
     os.remove('filtered_con_text.con')
 except OSError:
     pass
-print("| Input Files:")
+if SHOW_INPUT_FILE_PROCESSING:
+    print("Input Files:")
 for p in ALL_INPUT_CON_FILES_PATH.glob("**/*.con"):
     kbytes = os.stat(p).st_size/1024
-    print('|', p.name, '- ', end='')
+    if SHOW_INPUT_FILE_PROCESSING:
+        print(f'  {p.name} - ', end='')
     with open(p, 'r') as read_file, open('filtered_con_text.txt', 'a') as filter_file:
         text = read_file.read()
 
@@ -76,8 +86,9 @@ for p in ALL_INPUT_CON_FILES_PATH.glob("**/*.con"):
             con_set.add(contingency)
             con_dict[contingency.id] = contingency
             count += 1
-        print(count)
-        
+        if SHOW_INPUT_FILE_PROCESSING:
+            print(count)
+
         # substitute out all contingencies and see what's left. should be nothing
         # but comments and some END keywords
         subbed_text = re.sub(simple_regex, '', text)
@@ -85,39 +96,54 @@ for p in ALL_INPUT_CON_FILES_PATH.glob("**/*.con"):
         subbed_text = re.sub(r'(\/\* =+\n){2,}', '/* ' + ('='*105) + '+\n', subbed_text)
         filter_file.write(f'/* === FILE {p.name} ===\n')
         filter_file.write(subbed_text)
-print()
-print("con_dict    ", len(con_dict))
-print("double_dict ", len(double_dict))
-print("con_set     ", len(con_set))
+
+if SHOW_INPUT_FILE_PROCESSING:
+    print()
+if SHOW_LOADED_CON_SUMMARY:
+    print("Loaded Contingencies Summary:")
+    print(f"  {len(con_set):<6}", "Unique Contingencies (con_set)")
+    print(f"  {len(con_dict):<6}", "Unique IDs (con_dict)")
+    print(f"  {len(double_dict):<6}", "Contingencies with Duplicate ID's (double_dict)")
 
 # separate doubled contingency id's
-print("duplicate id's:")
 for id_, set_ in double_dict.items():
-    print(' ', id_)
     sorted_cons = sorted(set_, key=lambda x: (x.lines_str, x.full_str))
     for i, con in enumerate(sorted_cons):
-        # print(con.full_str)
-        # print()
         con_set.remove(con)
         new_id = f"{id_}_{i}"
         con.change_id(new_id)
         con_set.add(con)
 
+# create a set of contingencies only if they contain a bus in the supplied file
 bus_filtered_con_set: set[Contingency] = set()
 for i, x in enumerate(con_set):
     if any(f"BUS {bus}" in x.lines_str for bus in BUSES):
-    # if any(f"BUS {bus}" in x.lines_str for bus in BUSES):
         bus_filtered_con_set.add(x)
-        # print(i)
-print("bus_filtered_con_set", len(bus_filtered_con_set))
+
+if SHOW_LOADED_CON_SUMMARY:
+    print(f"  {len(bus_filtered_con_set):<6}", "Unique Contingencies with Supplied Buses (bus_filtered_con_set)")
+    print()
+
+if SHOW_DUP_ID_LIST:
+    print("Duplicate ID's:")
+    if not double_dict:
+        print("  NONE")
+    for id_ in double_dict:
+        print(f"  {id_}")
+    print()
 
 # dump all contingencies to a file
 dump_contingencies(OUTPUT_CON_PATH / "All Filtered Contingencies.con", bus_filtered_con_set)
 
 # show nerc category numerical breakdown
-# for cat, num in get_cat_numbers(bus_filtered_con_set):
-#     print(f"{num:<5} {cat}")
-#     pass
+if SHOW_NERC_CAT_SUMMARY:
+    print("NERC Category Summary:")
+    cat_numbers = get_cat_numbers(bus_filtered_con_set)
+    if not cat_numbers:
+        print("  NONE")
+    for cat, num in cat_numbers:
+        print(f"  {num:<5} {cat}")
+    print()
 
 # get all the contingencies that share a set of statements
 dup_lines_dict: dict[str, list[Contingency]] = {}
@@ -135,17 +161,18 @@ for line, ls in dup_lines_dict.items():
     if len_ not in dup_lines_count_dict:
         dup_lines_count_dict[len_] = 0
     dup_lines_count_dict[len_] += 1
-print("dup_lines_count_dict:")
-for len_, count_ in dup_lines_count_dict.items():
-    print(f"{len_:<3} - {count_}")
+if SHOW_DUP_LINE_COUNT_SUMMARY:
+    print("Duplicate Lines Count Summary:")
+    if not dup_lines_count_dict:
+        print("  NONE")
+    width = max(math.ceil(math.log10(x)) for x in dup_lines_count_dict.keys())
+    for len_, count_ in dup_lines_count_dict.items():
+        print(f"  {len_:<{width}} - {count_}")
+    print()
 
 # collect the duplicated contingencies and store them in their sister
 # contingencies' duplicates list
 for i, (k, ls) in enumerate(dup_lines_dict.items()):
-    # for c in dup_lines_dict[k]:
-    #     print(c.full_str)
-    # if i > 1:
-    #     break
     for con in ls:
         other_cons = [c for c in ls if c != con]
         con.duplicates = other_cons
@@ -180,12 +207,21 @@ for con in bus_filtered_con_set:
             break
 
 # output the contingencies to their files
+
+if SHOW_OUTPUT_FILE_PROGRESS:
+    print("Output File Progress:")
 for filename, group in zip(output_file_names, output_file_groups):
+    if SHOW_OUTPUT_FILE_PROGRESS:
+        print(f'  {filename}', end='', flush=True)
     dump_contingencies(OUTPUT_CON_PATH / filename, group)
+    if SHOW_OUTPUT_FILE_PROGRESS:
+        print(" - done")
 
 # dump to excel file
 # store contingency name and line data in contingency description in the lookup spreadsheet
 XL_PATH = OUTPUT_CON_PATH / 'Contingency Lookup.xlsx'
+if SHOW_OUTPUT_FILE_PROGRESS:
+    print(f'  {XL_PATH.name}', end='', flush=True)
 df = pd.DataFrame((x.make_csv_line_dict() for x in bus_filtered_con_set))
 df.sort_values(['CONTINGENCY TYPE', 'CONTINGENCY'], axis=0, inplace=True)
 df.to_excel(XL_PATH, index=False, sheet_name="Contingency Lookup")
@@ -198,7 +234,7 @@ for col in range(sheet.max_column):
         cell = sheet.cell(row=row+1, column=col+1)
         cell.font = openpyxl.styles.Font(name='Consolas', size=9)
         cell.alignment = openpyxl.styles.Alignment(vertical='center', wrap_text=True)
-        
+
         # measure cell size in column
         cell_val = str(cell.value)
         cell_len = max(len(x) for x in cell_val.split('\n'))
@@ -211,5 +247,12 @@ for col in range(sheet.max_column):
 table_ref = f"A1:{get_column_letter(sheet.max_column)}{sheet.max_row}"
 tab = Table(displayName="ContingencyLookup", ref=table_ref)
 sheet.add_table(tab)
-    
+
 wb.save(XL_PATH)
+if SHOW_OUTPUT_FILE_PROGRESS:
+    print(' - done')
+    print()
+
+print("Done")
+if WAIT_FOR_INPUT_TO_CLOSE:
+    input("Press Enter to Exit")
