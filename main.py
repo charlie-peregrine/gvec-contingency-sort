@@ -2,7 +2,9 @@
 # sort and analyze contingency files
 
 import os
+import argparse
 import re
+import configparser
 import pandas as pd
 from pathlib import Path
 
@@ -14,20 +16,30 @@ import openpyxl.styles
 from consort.contingency import Contingency
 from consort.tools import dump_contingencies, get_cat_numbers
 
+# process cmd line arg if it exists
+parser = argparse.ArgumentParser(prog="PSSE Contingency Sorting")
+parser.add_argument("ini_path", default='config.ini', nargs='?',
+        help="The program's config file. See default for more details. Optional.")
+args = parser.parse_args()
+config_file_path = Path(args.ini_path)
 
-BUS_FILE = "Buses for Contingencies.txt"
+# load configs from ini file
+config_data = configparser.ConfigParser()
+config_data.read(config_file_path)
+BUS_FILE                 = Path(config_data["PATHS"]["BUS_FILE"])
+OUTPUT_CON_PATH          = Path(config_data["PATHS"]["OUTPUT_CON_PATH"])
+ALL_INPUT_CON_FILES_PATH = Path(config_data["PATHS"]["ALL_INPUT_CON_FILES_PATH"])
+
+# read buses from bus file
 with open(BUS_FILE, 'r') as bus_file:
     BUSES = [x for x in bus_file.read().split('\n') if x]
     BUSES.sort()
 
 # make sure output con directory exists
-OUTPUT_CON_PATH = Path("Final Contingency Files")
 try:
     os.mkdir(OUTPUT_CON_PATH)
 except FileExistsError:
     pass
-
-ALL_INPUT_CON_FILES_PATH = Path(r"ERCOT Contingency Files\ALL_DATE_RANGES")
 
 simple_regex = re.compile(
     r'(?:\/\*.*\n){3}'
@@ -44,7 +56,7 @@ try:
 except OSError:
     pass
 print("| Input Files:")
-for p in ALL_INPUT_CON_FILES_PATH.glob("*.con"):
+for p in ALL_INPUT_CON_FILES_PATH.glob("**/*.con"):
     kbytes = os.stat(p).st_size/1024
     print('|', p.name, '- ', end='')
     with open(p, 'r') as read_file, open('filtered_con_text.txt', 'a') as filter_file:
