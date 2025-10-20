@@ -4,15 +4,14 @@
 import os
 import re
 import pandas as pd
-import time
 from pathlib import Path
-from typing import Callable, Iterable
 
 import openpyxl
 from openpyxl.utils import get_column_letter
 import openpyxl.styles
 
 from consort.contingency import Contingency
+from consort.tools import dump_contingencies, get_cat_numbers
 
 
 BUS_FILE = "Buses for Contingencies.txt"
@@ -28,7 +27,6 @@ except FileExistsError:
     pass
 
 ALL_INPUT_CON_FILES_PATH = Path(r"ERCOT Contingency Files\ALL_DATE_RANGES")
-SEP_LINE = '/* ' + '='*105 + '\n'
 
 simple_regex = re.compile(
     r'(?:\/\*.*\n){3}'
@@ -97,43 +95,6 @@ for i, x in enumerate(con_set):
         bus_filtered_con_set.add(x)
         # print(i)
 print("bus_filtered_con_set", len(bus_filtered_con_set))
-
-# dump all contingencies to a file
-def dump_contingencies(file_name: str | Path, contingencies: Iterable[Contingency],
-            sort_func: Callable[[Contingency],tuple] = lambda x: (x.submitter, x.nerc_cat, x.id)):
-    with open(file_name, 'w') as file:
-        # write file name and time at the top of the file
-        file.write(f"/* {Path(file_name).name}, Generated {time.asctime()}\n")
-        
-        # write category summary at the top of the file
-        file.write(SEP_LINE)
-        cat_numbers = get_cat_numbers(contingencies)
-        file.write('/* Category Count:\n')
-        for cat, num in cat_numbers:
-            file.write(f'/*\t\t{num:>4} - {cat}\n')
-
-        # keep track of submitters to place contingency grouping comments
-        prev_submitter = ''
-        for con in sorted(contingencies, key=sort_func):
-            if con.submitter != prev_submitter:
-                prev_submitter = con.submitter
-                file.write(SEP_LINE)
-                file.write(
-                    f'/* \t\t\t\t\tContingency Definitions Submitted by: {con.submitter}\n'
-                )
-            file.write(SEP_LINE)
-            file.write(con.full_str)
-        file.write(SEP_LINE)
-        file.write("END\n")
-
-def get_cat_numbers(ls: Iterable[Contingency]):
-    cat_numbers = {}
-    for con in ls:
-        if con.nerc_cat not in cat_numbers:
-            cat_numbers[con.nerc_cat] = 1
-        else:
-            cat_numbers[con.nerc_cat] += 1
-    return tuple(sorted(cat_numbers.items()))
 
 # dump all contingencies to a file
 dump_contingencies(OUTPUT_CON_PATH / "All Filtered Contingencies.con", bus_filtered_con_set)
@@ -234,5 +195,3 @@ for col in range(sheet.max_column):
     sheet.column_dimensions[get_column_letter(col+1)].width = max_col_len
     
 wb.save(XL_PATH)
-# look for contingency that has different db id but identical lines
-# no 2.1s?

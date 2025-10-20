@@ -98,4 +98,3 @@ class Contingency():
     
     def __eq__(self, other: object) -> bool:
         return hash(self) == hash(other)
-
