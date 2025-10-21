@@ -166,7 +166,7 @@ if SHOW_DUP_LINE_COUNT_SUMMARY:
     if not dup_lines_count_dict:
         print("  NONE")
     width = max(math.ceil(math.log10(x)) for x in dup_lines_count_dict.keys())
-    for len_, count_ in dup_lines_count_dict.items():
+    for len_, count_ in sorted(dup_lines_count_dict.items(), key=lambda x: x[0]):
         print(f"  {len_:<{width}} - {count_}")
     print()
 
