@@ -155,13 +155,14 @@ dup_lines_dict = {line: ls for line, ls in dup_lines_dict.items() if len(ls) > 1
 
 # get the counts for how many duplicates there are and
 # how many doubles, triples, etc.
-dup_lines_count_dict = {}
-for line, ls in dup_lines_dict.items():
-    len_ = len(ls)
-    if len_ not in dup_lines_count_dict:
-        dup_lines_count_dict[len_] = 0
-    dup_lines_count_dict[len_] += 1
 if SHOW_DUP_LINE_COUNT_SUMMARY:
+    dup_lines_count_dict = {}
+    for line, ls in dup_lines_dict.items():
+        len_ = len(ls)
+        if len_ not in dup_lines_count_dict:
+            dup_lines_count_dict[len_] = 0
+        dup_lines_count_dict[len_] += 1
+
     print("Duplicate Lines Count Summary:")
     if not dup_lines_count_dict:
         print("  NONE")
