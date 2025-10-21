@@ -117,7 +117,7 @@ for id_, set_ in double_dict.items():
 # create a set of contingencies only if they contain a bus in the supplied file
 bus_filtered_con_set: set[Contingency] = set()
 for i, x in enumerate(con_set):
-    if any(f"BUS {bus}" in x.lines_str for bus in BUSES):
+    if any(f"BUS {bus}" in x.lines_str for bus in BUSES) and 'P6.' not in x.nerc_cat:
         bus_filtered_con_set.add(x)
 
 if SHOW_LOADED_CON_SUMMARY:
