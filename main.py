@@ -199,7 +199,7 @@ output_file_names: list[str] = list(
         'EE'
     )
 )
-output_file_groups = [[] for i in range(6)]
+output_file_groups = [[] for _ in range(6)]
 # group contingencies into which file they'll be in
 for con in bus_filtered_con_set:
     for cat_list, group_list in zip(cats_to_search, output_file_groups):
@@ -208,7 +208,6 @@ for con in bus_filtered_con_set:
             break
 
 # output the contingencies to their files
-
 if SHOW_OUTPUT_FILE_PROGRESS:
     print("Output File Progress:")
 for filename, group in zip(output_file_names, output_file_groups):
