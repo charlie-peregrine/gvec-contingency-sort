@@ -2,12 +2,9 @@
 *.pyc
 Example Final Cont Files/
 Final Contingency Files/
-Final Contingency Files.zip
-base.zip
-filtered_con_text.txt
+*.zip
+*.con
+*.txt
 
 # input file folder
 ERCOT Contingency Files
-
-# input bus txt file
-Buses for Contingencies.txt
