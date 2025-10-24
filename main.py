@@ -30,6 +30,8 @@ config_data.read(config_file_path)
 BUS_FILE                 = Path(config_data["PATHS"]["BUS_FILE"])
 OUTPUT_CON_PATH          = Path(config_data["PATHS"]["OUTPUT_CON_PATH"])
 ALL_INPUT_CON_FILES_PATH = Path(config_data["PATHS"]["ALL_INPUT_CON_FILES_PATH"])
+POST_FILTER_CON_PATH     = Path(config_data["PATHS"]["POST_FILTER_CON_PATH"])
+USE_POST_FILTER_CONS     = config_data["PATHS"].getboolean("USE_POST_FILTER_CONS")
 SHOW_INPUT_FILE_PROCESSING  = config_data["FLAGS"].getboolean("SHOW_INPUT_FILE_PROCESSING")
 SHOW_LOADED_CON_SUMMARY     = config_data["FLAGS"].getboolean("SHOW_LOADED_CON_SUMMARY")
 SHOW_DUP_ID_LIST            = config_data["FLAGS"].getboolean("SHOW_DUP_ID_LIST")
@@ -37,6 +39,7 @@ SHOW_NERC_CAT_SUMMARY       = config_data["FLAGS"].getboolean("SHOW_NERC_CAT_SUM
 SHOW_DUP_LINE_COUNT_SUMMARY = config_data["FLAGS"].getboolean("SHOW_DUP_LINE_COUNT_SUMMARY")
 SHOW_OUTPUT_FILE_PROGRESS   = config_data["FLAGS"].getboolean("SHOW_OUTPUT_FILE_PROGRESS")
 WAIT_FOR_INPUT_TO_CLOSE     = config_data["FLAGS"].getboolean("WAIT_FOR_INPUT_TO_CLOSE")
+SHOW_POST_FILTER_SUMMARY    = config_data["FLAGS"].getboolean("SHOW_POST_FILTER_SUMMARY")
 
 # read buses from bus file
 with open(BUS_FILE, 'r') as bus_file:
@@ -132,19 +135,26 @@ if SHOW_DUP_ID_LIST:
         print(f"  {id_}")
     print()
 
-# add pec submitted contingencies if their statements don't match
+# add additional contingencies if their statements don't match
 # any other contingencies
-WEIRD_FILE = 'PEC_SINGLE_CONTINGENCIES.con'
-with open(WEIRD_FILE, 'r') as file:
-    text = file.read()
-filtered_lines = set(x.lines_str for x in bus_filtered_con_set)
-blah = []
-for m in re.finditer(simple_regex, text):
-    con = Contingency(m[0], WEIRD_FILE)
-    if con.lines_str not in filtered_lines:
-        blah.append(con)
-        filtered_lines.add(con.lines_str)
-        bus_filtered_con_set.add(con)
+if USE_POST_FILTER_CONS:
+    with open(POST_FILTER_CON_PATH, 'r') as file:
+        text = file.read()
+    filtered_lines = set(x.lines_str for x in bus_filtered_con_set)
+    added_cons = []
+    count = 0
+    for m in re.finditer(simple_regex, text):
+        con = Contingency(m[0], POST_FILTER_CON_PATH)
+        if con.lines_str not in filtered_lines:
+            added_cons.append(con)
+            filtered_lines.add(con.lines_str)
+            bus_filtered_con_set.add(con)
+        count += 1
+    if SHOW_POST_FILTER_SUMMARY:
+        fraction = f"{len(added_cons)}/{count}"
+        print("Additional Contingencies Summary:")
+        print(f"  {fraction} Addtional Contingencies Added to Unique Filtered Contingencies")
+        print()
 
 # dump all contingencies to a file
 dump_contingencies(OUTPUT_CON_PATH / "All Filtered Contingencies.con", bus_filtered_con_set)
