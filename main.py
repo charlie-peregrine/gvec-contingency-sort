@@ -50,7 +50,7 @@ except FileExistsError:
     pass
 
 simple_regex = re.compile(
-    r'(?:\/\*.*\n){3}'
+    r'(?:\/\*.*\n){0,3}'
     r'\s*CONTINGENCY \'(.+)\'.*\n'
     r'([\n\S\s]*?)\s*END\n',
     re.MULTILINE
@@ -131,6 +131,20 @@ if SHOW_DUP_ID_LIST:
     for id_ in double_dict:
         print(f"  {id_}")
     print()
+
+# add pec submitted contingencies if their statements don't match
+# any other contingencies
+WEIRD_FILE = 'PEC_SINGLE_CONTINGENCIES.con'
+with open(WEIRD_FILE, 'r') as file:
+    text = file.read()
+filtered_lines = set(x.lines_str for x in bus_filtered_con_set)
+blah = []
+for m in re.finditer(simple_regex, text):
+    con = Contingency(m[0], WEIRD_FILE)
+    if con.lines_str not in filtered_lines:
+        blah.append(con)
+        filtered_lines.add(con.lines_str)
+        bus_filtered_con_set.add(con)
 
 # dump all contingencies to a file
 dump_contingencies(OUTPUT_CON_PATH / "All Filtered Contingencies.con", bus_filtered_con_set)

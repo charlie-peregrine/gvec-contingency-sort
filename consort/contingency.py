@@ -4,9 +4,9 @@ import re
 
 
 big_regex = re.compile(
-    r"\/\* Contingency '(.*)'\n"
-    r"\/\* StartDate: ([\d/]*); StopDate: ([\d/]*);\n"
-    r"\/\* Submitter: (.*); NERCCategory: (.*); ERCOTCategory: (.*);\n"
+    r"(?:\/\* Contingency '(.*)'\n)?"
+    r"(?:\/\* StartDate: ([\d/]*); StopDate: ([\d/]*);\n)?"
+    r"(?:\/\* Submitter: (.*); NERCCategory: (.*); ERCOTCategory: (.*);\n)?"
     r"\s*CONTINGENCY '(.+)'.*?(?:\/\* (.*))?\n"
     r"((?:\s*[\S\s]+?\n)*?)\s*END\n",
     re.MULTILINE
@@ -15,23 +15,26 @@ big_regex = re.compile(
 
 class Contingency():
     def __init__(self, full_str, source_file=None):
-        self.full_str = full_str
-        self.trimmed_full_str = re.sub(r'[ \t]+\/\*.*\n', '\n', full_str)
         self.source_file = source_file
-        m = re.match(big_regex, full_str)
+        m = re.search(big_regex, full_str)
         if m is None:
             raise ValueError
-        self.name = m[1]
-        self.start_date = m[2]
-        self.stop_date = m[3]
-        self.submitter = m[4]
-        self.nerc_cat = m[5]
+        
+        groups = [m[0]] + ['' if x is None else x for x in m.groups()]
+
+        self.full_str = groups[0]
+        self.trimmed_full_str = re.sub(r'[ \t]+\/\*.*\n', '\n', self.full_str)
+        self.name = groups[1]
+        self.start_date = groups[2]
+        self.stop_date = groups[3]
+        self.submitter = groups[4]
+        self.nerc_cat = groups[5]
         self._set_contingency_group()
-        self.ercot_cat = m[6]
-        self.id = m[7]
-        self.id_comment = m[8] if m[8] is not None else ''
+        self.ercot_cat = groups[6]
+        self.id = groups[7]
+        self.id_comment = groups[8] if groups[8] is not None else ''
         self.lines = []
-        for line in m[9].split('\n'):
+        for line in groups[9].split('\n'):
             if line:
                 stripped = line.strip()
                 split = re.split(r'\s*\/\*\s*', stripped, maxsplit=1)
