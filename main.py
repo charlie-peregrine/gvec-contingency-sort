@@ -33,14 +33,17 @@ OUTPUT_CON_PATH          = Path(config_data["PATHS"]["OUTPUT_CON_PATH"])
 ALL_INPUT_CON_FILES_PATH = Path(config_data["PATHS"]["ALL_INPUT_CON_FILES_PATH"])
 POST_FILTER_CON_PATH     = Path(config_data["PATHS"]["POST_FILTER_CON_PATH"])
 USE_POST_FILTER_CONS     = config_data["PATHS"].getboolean("USE_POST_FILTER_CONS")
-SHOW_INPUT_FILE_PROCESSING  = config_data["FLAGS"].getboolean("SHOW_INPUT_FILE_PROCESSING")
-SHOW_LOADED_CON_SUMMARY     = config_data["FLAGS"].getboolean("SHOW_LOADED_CON_SUMMARY")
-SHOW_DUP_ID_LIST            = config_data["FLAGS"].getboolean("SHOW_DUP_ID_LIST")
-SHOW_NERC_CAT_SUMMARY       = config_data["FLAGS"].getboolean("SHOW_NERC_CAT_SUMMARY")
-SHOW_DUP_LINE_COUNT_SUMMARY = config_data["FLAGS"].getboolean("SHOW_DUP_LINE_COUNT_SUMMARY")
-SHOW_OUTPUT_FILE_PROGRESS   = config_data["FLAGS"].getboolean("SHOW_OUTPUT_FILE_PROGRESS")
-WAIT_FOR_INPUT_TO_CLOSE     = config_data["FLAGS"].getboolean("WAIT_FOR_INPUT_TO_CLOSE")
-SHOW_POST_FILTER_SUMMARY    = config_data["FLAGS"].getboolean("SHOW_POST_FILTER_SUMMARY")
+LOOKUP_TABLE_ADD_INS     = Path(config_data["PATHS"]["LOOKUP_TABLE_ADD_INS"])
+USE_LOOKUP_TABLE_ADD_INS = config_data["PATHS"].getboolean("USE_LOOKUP_TABLE_ADD_INS")
+SHOW_INPUT_FILE_PROCESSING   = config_data["FLAGS"].getboolean("SHOW_INPUT_FILE_PROCESSING")
+SHOW_LOADED_CON_SUMMARY      = config_data["FLAGS"].getboolean("SHOW_LOADED_CON_SUMMARY")
+SHOW_DUP_ID_LIST             = config_data["FLAGS"].getboolean("SHOW_DUP_ID_LIST")
+SHOW_NERC_CAT_SUMMARY        = config_data["FLAGS"].getboolean("SHOW_NERC_CAT_SUMMARY")
+SHOW_DUP_LINE_COUNT_SUMMARY  = config_data["FLAGS"].getboolean("SHOW_DUP_LINE_COUNT_SUMMARY")
+SHOW_OUTPUT_FILE_PROGRESS    = config_data["FLAGS"].getboolean("SHOW_OUTPUT_FILE_PROGRESS")
+WAIT_FOR_INPUT_TO_CLOSE      = config_data["FLAGS"].getboolean("WAIT_FOR_INPUT_TO_CLOSE")
+SHOW_POST_FILTER_SUMMARY     = config_data["FLAGS"].getboolean("SHOW_POST_FILTER_SUMMARY")
+SHOW_LKP_TBL_ADD_INS_SUMMARY = config_data["FLAGS"].getboolean("SHOW_LKP_TBL_ADD_INS_SUMMARY")
 
 # read buses from bus file
 with open(BUS_FILE, 'r') as bus_file:
@@ -243,6 +246,18 @@ for filename, group in zip(output_file_names, output_file_groups):
     dump_contingencies(OUTPUT_CON_PATH / filename, group)
     if SHOW_OUTPUT_FILE_PROGRESS:
         print(" - done")
+
+if USE_LOOKUP_TABLE_ADD_INS:
+    with open(LOOKUP_TABLE_ADD_INS, 'r') as file:
+        text = file.read()
+    count = 0
+    for m in re.finditer(simple_regex, text):
+        con = Contingency(m[0], LOOKUP_TABLE_ADD_INS.name)
+        bus_filtered_con_set.add(con)
+        count += 1
+    if SHOW_LKP_TBL_ADD_INS_SUMMARY:
+        print("Lookup Table Add In Summary:")
+        print(f"  {count} Contingencies Added to Lookup Table")
 
 # dump to excel file
 # store contingency name and line data in contingency description in the lookup spreadsheet
