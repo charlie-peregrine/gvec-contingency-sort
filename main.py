@@ -180,12 +180,10 @@ if SHOW_NERC_CAT_SUMMARY:
     print()
 
 # get all the contingencies that share a set of statements
-dup_lines_dict: dict[str, list[Contingency]] = {}
+dup_lines_ddict: defaultdict[str, list[Contingency]] = defaultdict(list)
 for x in bus_filtered_con_set:
-    if x.lines_str not in dup_lines_dict:
-        dup_lines_dict[x.lines_str] = []
-    dup_lines_dict[x.lines_str].append(x)
-dup_lines_dict = {line: ls for line, ls in dup_lines_dict.items() if len(ls) > 1}
+    dup_lines_ddict[x.lines_str].append(x)
+dup_lines_dict = {line: ls for line, ls in dup_lines_ddict.items() if len(ls) > 1}
 
 # get the counts for how many duplicates there are and
 # how many doubles, triples, etc.
