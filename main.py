@@ -62,7 +62,7 @@ simple_regex = re.compile(
 
 con_dict: dict[str, Contingency] = {}
 con_set: set[Contingency] = set()
-double_dict: dict[str, set[Contingency]] = {}
+double_dict: defaultdict[str, set[Contingency]] = defaultdict(set)
 try:
     os.remove('filtered_con_text.con')
 except OSError:
@@ -83,8 +83,6 @@ for p in ALL_INPUT_CON_FILES_PATH.glob("**/*.con"):
             # store contingencies that have the same id but are otherwise
             # different. utilize set element uniqueness to avoid adding extras
             if contingency not in con_set and contingency.id in con_dict:
-                if contingency.id not in double_dict:
-                    double_dict[contingency.id] = set()
                 double_dict[contingency.id].add(contingency)
                 double_dict[contingency.id].add(con_dict[contingency.id])
             con_set.add(contingency)
@@ -188,12 +186,9 @@ dup_lines_dict = {line: ls for line, ls in dup_lines_ddict.items() if len(ls) > 
 # get the counts for how many duplicates there are and
 # how many doubles, triples, etc.
 if SHOW_DUP_LINE_COUNT_SUMMARY:
-    dup_lines_count_dict = {}
+    dup_lines_count_dict = defaultdict(int)
     for line, ls in dup_lines_dict.items():
-        len_ = len(ls)
-        if len_ not in dup_lines_count_dict:
-            dup_lines_count_dict[len_] = 0
-        dup_lines_count_dict[len_] += 1
+        dup_lines_count_dict[len(ls)] += 1
 
     print("Duplicate Lines Count Summary:")
     if not dup_lines_count_dict:
