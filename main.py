@@ -8,6 +8,7 @@ import math
 import configparser
 import pandas as pd
 from pathlib import Path
+from collections import defaultdict
 
 import openpyxl
 from openpyxl.utils import get_column_letter
@@ -140,15 +141,24 @@ if SHOW_DUP_ID_LIST:
 if USE_POST_FILTER_CONS:
     with open(POST_FILTER_CON_PATH, 'r') as file:
         text = file.read()
-    filtered_lines = set(x.lines_str for x in bus_filtered_con_set)
+    # create a defaultdict, allowing simple appending contingencies into a
+    # dictionary of lists, indexed by lines_str's
+    filtered_lines_dict = defaultdict(list)
+    for x in bus_filtered_con_set:
+        filtered_lines_dict[x.lines_str].append(x)
+
     added_cons = []
     count = 0
     for m in re.finditer(simple_regex, text):
         con = Contingency(m[0], POST_FILTER_CON_PATH)
-        if con.lines_str not in filtered_lines:
+        if con.lines_str not in filtered_lines_dict:
             added_cons.append(con)
-            filtered_lines.add(con.lines_str)
+            filtered_lines_dict[con.lines_str].append(con)
             bus_filtered_con_set.add(con)
+        else:
+            other_cons = filtered_lines_dict[con.lines_str]
+            for other_con in other_cons:
+                other_con.duplicates.append(con)
         count += 1
     if SHOW_POST_FILTER_SUMMARY:
         fraction = f"{len(added_cons)}/{count}"
@@ -200,7 +210,7 @@ if SHOW_DUP_LINE_COUNT_SUMMARY:
 for i, (k, ls) in enumerate(dup_lines_dict.items()):
     for con in ls:
         other_cons = [c for c in ls if c != con]
-        con.duplicates = other_cons
+        con.duplicates += other_cons
 
 # group into files by (1.1), (1.2, 1.3, 2.1), (1.4), (7.1)
 # (P2.2, P2.3, P2.4, P4, P5), (EE1, EE2, EE3)
