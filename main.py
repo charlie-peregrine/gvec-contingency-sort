@@ -6,17 +6,11 @@ import argparse
 import re
 import math
 import configparser
-import pandas as pd
 from pathlib import Path
 from collections import defaultdict
 
-import openpyxl
-from openpyxl.utils import get_column_letter
-from openpyxl.worksheet.table import Table
-import openpyxl.styles
-
 from consort.contingency import Contingency
-from consort.tools import dump_contingencies, get_cat_numbers
+from consort.tools import dump_contingencies, get_cat_numbers, dump_2_excel
 
 # process cmd line arg if it exists
 parser = argparse.ArgumentParser()
@@ -237,16 +231,6 @@ for con in bus_filtered_con_set:
             group_list.append(con)
             break
 
-# output the contingencies to their files
-if SHOW_OUTPUT_FILE_PROGRESS:
-    print("Output File Progress:")
-for filename, group in zip(output_file_names, output_file_groups):
-    if SHOW_OUTPUT_FILE_PROGRESS:
-        print(f'  {filename}', end='', flush=True)
-    dump_contingencies(OUTPUT_CON_PATH / filename, group)
-    if SHOW_OUTPUT_FILE_PROGRESS:
-        print(" - done")
-
 if USE_LOOKUP_TABLE_ADD_INS:
     with open(LOOKUP_TABLE_ADD_INS, 'r') as file:
         text = file.read()
@@ -258,42 +242,22 @@ if USE_LOOKUP_TABLE_ADD_INS:
     if SHOW_LKP_TBL_ADD_INS_SUMMARY:
         print("Lookup Table Add In Summary:")
         print(f"  {count} Contingencies Added to Lookup Table")
+        print()
+
+# output the contingencies to their files
+if SHOW_OUTPUT_FILE_PROGRESS:
+    print("Output File Progress:")
+for filename, group in zip(output_file_names, output_file_groups):
+    if SHOW_OUTPUT_FILE_PROGRESS:
+        print(f'  {filename}', end='', flush=True)
+    dump_contingencies(OUTPUT_CON_PATH / filename, group)
+    if SHOW_OUTPUT_FILE_PROGRESS:
+        print(" - done")
 
 # dump to excel file
 # store contingency name and line data in contingency description in the lookup spreadsheet
-XL_PATH = OUTPUT_CON_PATH / 'Contingency Lookup.xlsx'
-if SHOW_OUTPUT_FILE_PROGRESS:
-    print(f'  {XL_PATH.name}', end='', flush=True)
-df = pd.DataFrame((x.make_csv_line_dict() for x in bus_filtered_con_set))
-df.sort_values(['CONTINGENCY TYPE', 'CONTINGENCY'], axis=0, inplace=True)
-df.to_excel(XL_PATH, index=False, sheet_name="Contingency Lookup")
-
-wb = openpyxl.open(XL_PATH)
-sheet = wb['Contingency Lookup']
-for col in range(sheet.max_column):
-    col_lens = []
-    for row in range(sheet.max_row):
-        cell = sheet.cell(row=row+1, column=col+1)
-        cell.font = openpyxl.styles.Font(name='Consolas', size=9)
-        cell.alignment = openpyxl.styles.Alignment(vertical='center', wrap_text=True)
-
-        # measure cell size in column
-        cell_val = str(cell.value)
-        cell_len = max(len(x) for x in cell_val.split('\n'))
-        col_lens.append(cell_len)
-        # max_col_len = max(max_col_len, cell_len)
-    max_col_len = max(sorted(col_lens)[:int(len(col_lens)*.95)])
-    sheet.column_dimensions[get_column_letter(col+1)].width = max_col_len
-
-# make the contingency lookup tab into a sortable table
-table_ref = f"A1:{get_column_letter(sheet.max_column)}{sheet.max_row}"
-tab = Table(displayName="ContingencyLookup", ref=table_ref)
-sheet.add_table(tab)
-
-wb.save(XL_PATH)
-if SHOW_OUTPUT_FILE_PROGRESS:
-    print(' - done')
-    print()
+xl_path = OUTPUT_CON_PATH / 'Contingency Lookup.xlsx'
+dump_2_excel(xl_path, bus_filtered_con_set, SHOW_OUTPUT_FILE_PROGRESS)
 
 print("Done")
 if WAIT_FOR_INPUT_TO_CLOSE:
